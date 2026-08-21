@@ -1,0 +1,30 @@
+import {
+  type CreateTransactionInput,
+  createTransactionSchema,
+  type TransactionResponse,
+} from '@challenge/contracts';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { TransactionsService } from './transactions.service';
+@Controller('transactions')
+export class TransactionsController {
+  constructor(private readonly transactions: TransactionsService) {}
+  /**
+   * Responde sem esperar a avaliacao antifraude: a transacao nasce pendente e muda de status
+   * depois, por evento. Devolver o recurso criado poupa uma requisicao ao dashboard.
+   */
+  @Post()
+  async criar(
+    @Body(new ZodValidationPipe(createTransactionSchema)) entrada: CreateTransactionInput,
+  ): Promise<TransactionResponse> {
+    return this.transactions.criar(entrada);
+  }
+  @Get(':transactionExternalId')
+  async buscar(
+    @Param('transactionExternalId', new ParseUUIDPipe({ version: '4' }))
+    transactionExternalId: string,
+  ): Promise<TransactionResponse> {
+    return this.transactions.buscarPorExternalId(transactionExternalId);
+  }
+}
