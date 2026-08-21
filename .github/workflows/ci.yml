@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth 0 porque o commitlint precisa do historico para comparar base e head
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # corepack le o campo packageManager, entao a versao do pnpm aqui e a mesma da maquina
+      - name: Habilita o pnpm
+        run: corepack enable
+
+      - name: Localiza o store do pnpm
+        run: echo "PNPM_STORE=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.PNPM_STORE }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Instala as dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Roda o quality gate
+        run: pnpm quality
+
+      # o hook local se contorna com --no-verify; aqui nao
+      - name: Valida as mensagens dos commits do PR
+        if: github.event_name == 'pull_request'
+        run: >
+          pnpm commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
