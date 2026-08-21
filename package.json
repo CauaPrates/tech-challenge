@@ -6,7 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "quality": "pnpm run format:check && pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

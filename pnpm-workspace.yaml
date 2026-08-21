@@ -2,8 +2,10 @@ packages:
   - apps/*
   - packages/*
 
-onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - esbuild
-  - prisma
+# pnpm 11 bloqueia script de build de dependencia por padrao. Estes precisam rodar: o prisma
+# baixa e posiciona os engines, e o esbuild instala o binario que o vitest usa.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  esbuild: true

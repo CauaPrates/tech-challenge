@@ -28,7 +28,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.mjs', '**/*.js'],
+    // arquivo de configuracao nao pertence a nenhum tsconfig e nao precisa de regra com tipos
+    files: ['**/*.mjs', '**/*.mts', '**/*.js'],
     extends: [tseslint.configs.disableTypeChecked],
   },
   prettier,
