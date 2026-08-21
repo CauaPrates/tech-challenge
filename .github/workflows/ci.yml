@@ -8,6 +8,24 @@ jobs:
   quality:
     name: Quality gate
     runs-on: ubuntu-latest
+
+    # o CI aplica as migrations num banco vazio, que e a unica forma de provar que elas
+    # sobem um ambiente novo sem passo manual
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: challenge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       # fetch-depth 0 porque o commitlint precisa do historico para comparar base e head
       - uses: actions/checkout@v4
@@ -33,6 +51,11 @@ jobs:
 
       - name: Instala as dependencias
         run: pnpm install --frozen-lockfile
+
+      - name: Aplica as migrations num banco vazio
+        run: pnpm --filter @challenge/transactions run prisma:deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/challenge?schema=public
 
       - name: Roda o quality gate
         run: pnpm quality
