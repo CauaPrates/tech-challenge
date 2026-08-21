@@ -56,6 +56,10 @@ model OutboxMessage {
   occurredAt  DateTime  @default(now()) @db.Timestamptz(3) @map("occurred_at")
   publishedAt DateTime? @db.Timestamptz(3) @map("published_at")
   attempts    Int       @default(0)
+  /// Quando esta mensagem volta a ser elegível. Serve de recuo exponencial e de lease: ao
+  /// reivindicar, o dispatcher empurra este campo para frente, para outra instância não pegar
+  /// a mesma mensagem enquanto ele publica fora da transação.
+  nextAttemptAt DateTime? @db.Timestamptz(3) @map("next_attempt_at")
   lastError   String?   @map("last_error")
 
   @@map("outbox_message")
