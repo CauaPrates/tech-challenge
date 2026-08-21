@@ -1,0 +1,39 @@
+{
+  "name": "tech-challenge",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "build": "pnpm -r run build",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0"
+  }
+}
