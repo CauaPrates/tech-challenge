@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Conjunto fechado com maquina de estado, entao enum: o TypeScript checa exaustividade nos
+// switch e o proprio banco recusa valor invalido.
+enum TransactionStatus {
+  PENDENTE
+  APROVADA
+  REJEITADA
+}
+
+// Dado de referencia, nao regra: chega como id numerico no contrato e cresce sem deploy. O id
+// e explicito, sem autoincremento, para o transferTypeId ser estavel entre ambientes.
+model TransactionType {
+  id           Int           @id
+  name         String        @unique @db.VarChar(50)
+  transactions Transaction[]
+
+  @@map("transaction_type")
+}
+
+model Transaction {
+  id                      String            @id @default(uuid()) @db.Uuid
+  externalId              String            @unique @default(uuid()) @db.Uuid @map("external_id")
+  accountExternalIdDebit  String            @db.Uuid @map("account_external_id_debit")
+  accountExternalIdCredit String            @db.Uuid @map("account_external_id_credit")
+  typeId                  Int               @map("type_id")
+  status                  TransactionStatus @default(PENDENTE)
+  // numeric, nunca float: dinheiro em ponto flutuante binario acumula erro
+  value                   Decimal           @db.Decimal(18, 2)
+  createdAt               DateTime          @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt               DateTime          @updatedAt @db.Timestamptz(3) @map("updated_at")
+
+  type TransactionType @relation(fields: [typeId], references: [id])
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([typeId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("transaction")
+}
