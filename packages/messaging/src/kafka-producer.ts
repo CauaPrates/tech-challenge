@@ -1,9 +1,14 @@
-import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 import { Kafka, type Producer } from 'kafkajs';
 
-import type { Env } from '../config/env';
 import { KafkaTopics } from './kafka-topics';
+import { KAFKA_OPCOES, type KafkaOpcoes } from './opcoes';
 
 @Injectable()
 export class KafkaProducer implements OnModuleInit, OnModuleDestroy {
@@ -13,12 +18,12 @@ export class KafkaProducer implements OnModuleInit, OnModuleDestroy {
   private conectado = false;
 
   constructor(
-    config: ConfigService<Env, true>,
+    @Inject(KAFKA_OPCOES) opcoes: KafkaOpcoes,
     private readonly topicos: KafkaTopics,
   ) {
     this.kafka = new Kafka({
-      clientId: config.get('KAFKA_CLIENT_ID', { infer: true }),
-      brokers: config.get('KAFKA_BROKERS', { infer: true }),
+      clientId: opcoes.clientId,
+      brokers: opcoes.brokers,
       // retry curto de proposito: o recuo de verdade e o do outbox, que sobrevive a restart do
       // processo. Retry longo aqui so prende o dispatcher e estoura timeout de transacao.
       retry: { retries: 1, initialRetryTime: 100 },

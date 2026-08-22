@@ -1,9 +1,8 @@
 import { deadLetterTopic, TOPICS } from '@challenge/contracts';
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Kafka } from 'kafkajs';
 
-import type { Env } from '../config/env';
+import { KAFKA_OPCOES, type KafkaOpcoes } from './opcoes';
 
 const PARTICOES_POR_TOPICO = 3;
 
@@ -12,9 +11,8 @@ const PARTICOES_POR_TOPICO = 3;
  * automatica usa a contagem de particoes padrao e transforma erro de digitacao no nome do
  * topico em topico novo, silenciosamente.
  *
- * Nao roda na subida do modulo, e sim antes da primeira publicacao. Broker indisponivel nao
- * pode impedir a API de aceitar criacao de transacao — e justamente para isso que o outbox
- * existe.
+ * Nao roda na subida do modulo, e sim antes do primeiro uso. Broker indisponivel nao pode
+ * impedir a API de aceitar criacao de transacao — e justamente para isso que o outbox existe.
  */
 @Injectable()
 export class KafkaTopics {
@@ -22,10 +20,10 @@ export class KafkaTopics {
   private readonly kafka: Kafka;
   private garantidos = false;
 
-  constructor(config: ConfigService<Env, true>) {
+  constructor(@Inject(KAFKA_OPCOES) opcoes: KafkaOpcoes) {
     this.kafka = new Kafka({
-      clientId: `${config.get('KAFKA_CLIENT_ID', { infer: true })}-admin`,
-      brokers: config.get('KAFKA_BROKERS', { infer: true }),
+      clientId: `${opcoes.clientId}-admin`,
+      brokers: opcoes.brokers,
       retry: { retries: 1, initialRetryTime: 100 },
       connectionTimeout: 3000,
     });

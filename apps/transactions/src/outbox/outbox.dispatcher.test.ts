@@ -1,8 +1,8 @@
 import { TOPICS } from '@challenge/contracts';
+import type { KafkaProducer } from '@challenge/messaging';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Env } from '../config/env';
-import type { KafkaProducer } from '../messaging/kafka-producer';
 import { OutboxDispatcher } from './outbox.dispatcher';
 import type { MensagemPendente, OutboxRepository } from './outbox.repository';
 

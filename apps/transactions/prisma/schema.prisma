@@ -64,3 +64,17 @@ model OutboxMessage {
 
   @@map("outbox_message")
 }
+
+/// Guarda de idempotencia. Kafka entrega ao menos uma vez; em vez de fingir que entrega
+/// exatamente uma, o consumo registra o eventId processado na MESMA transacao do efeito. A
+/// chave composta por consumidor permite o mesmo evento ser processado por consumidores
+/// diferentes sem um bloquear o outro.
+model ProcessedEvent {
+  consumer    String   @db.VarChar(100)
+  eventId     String   @db.Uuid @map("event_id")
+  eventName   String   @db.VarChar(100) @map("event_name")
+  processedAt DateTime @default(now()) @db.Timestamptz(3) @map("processed_at")
+
+  @@id([consumer, eventId])
+  @@map("processed_event")
+}
