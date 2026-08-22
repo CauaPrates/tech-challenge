@@ -1,5 +1,6 @@
+import type { FinalTransactionStatus } from '@challenge/contracts';
 import { Injectable } from '@nestjs/common';
-import type { Prisma, Transaction, TransactionType } from '@prisma/client';
+import type { Prisma, Transaction, TransactionStatus, TransactionType } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +26,30 @@ export class TransactionsRepository {
       where: { externalId },
       include: { type: true },
     });
+  }
+
+  /**
+   * SELECT ... FOR UPDATE: torna atomico o ciclo ler status, decidir transicao, gravar. Sem o
+   * lock, dois vereditos concorrentes para a mesma transacao poderiam ler o mesmo PENDENTE e
+   * ambos concluir que podem escrever.
+   */
+  async travarPorExternalId(
+    tx: Prisma.TransactionClient,
+    externalId: string,
+  ): Promise<{ id: string; status: TransactionStatus } | null> {
+    const linhas = await tx.$queryRaw<{ id: string; status: TransactionStatus }[]>`
+      SELECT id, status FROM transaction WHERE external_id = ${externalId}::uuid FOR UPDATE
+    `;
+
+    return linhas[0] ?? null;
+  }
+
+  async atualizarStatus(
+    tx: Prisma.TransactionClient,
+    id: string,
+    status: FinalTransactionStatus,
+  ): Promise<void> {
+    await tx.transaction.update({ where: { id }, data: { status } });
   }
 
   async tipoExiste(tx: Prisma.TransactionClient, typeId: number): Promise<boolean> {
