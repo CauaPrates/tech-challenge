@@ -44,3 +44,23 @@ model Transaction {
   @@index([createdAt(sort: Desc)])
   @@map("transaction")
 }
+
+/// Evento gravado na MESMA transacao do fato que o originou. Sem isto existiria um instante em
+/// que a transacao esta commitada e o evento nao saiu — o dual-write.
+model OutboxMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @unique @db.Uuid @map("event_id")
+  eventName   String    @db.VarChar(100) @map("event_name")
+  aggregateId String    @db.Uuid @map("aggregate_id")
+  payload     Json      @db.JsonB
+  occurredAt  DateTime  @default(now()) @db.Timestamptz(3) @map("occurred_at")
+  publishedAt DateTime? @db.Timestamptz(3) @map("published_at")
+  attempts    Int       @default(0)
+  /// Quando esta mensagem volta a ser elegível. Serve de recuo exponencial e de lease: ao
+  /// reivindicar, o dispatcher empurra este campo para frente, para outra instância não pegar
+  /// a mesma mensagem enquanto ele publica fora da transação.
+  nextAttemptAt DateTime? @db.Timestamptz(3) @map("next_attempt_at")
+  lastError   String?   @map("last_error")
+
+  @@map("outbox_message")
+}
