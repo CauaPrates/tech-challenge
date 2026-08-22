@@ -1,166 +1,132 @@
 # Decisões
 
-Registro das decisões estruturantes do projeto. Cada uma traz a alternativa que foi considerada e
-descartada, porque é a comparação que explica a escolha.
+Uma seção por decisão estruturante, na ordem em que o README as lista, mais a resposta sobre
+volume alto no fim.
 
-Este arquivo deveria ter nascido no primeiro PR. Nasceu no quarto, consolidando as decisões
-tomadas até aqui — o histórico de commits é que mostra quando cada uma foi de fato tomada.
+A seção de atualização de status na interface registra uma decisão já tomada mas ainda não
+implementada — o dashboard chega em um PR seguinte.
 
 ## Organização do projeto
 
-**Decisão:** monorepo com pnpm workspaces, sem orquestrador de tarefas. Três aplicações em `apps/`
-e o código compartilhado em `packages/`. O quality gate encadeia as etapas com `pnpm -r`.
+**Decisão:** monorepo com pnpm workspaces, três aplicações em `apps/` e o código compartilhado em
+`packages/`, sem orquestrador de tarefas. O quality gate encadeia as etapas com `pnpm -r`.
 
 **Alternativas consideradas:** Turborepo e repositórios separados por serviço.
 
-**Por quê:** o Turborepo foi montado de fato e removido depois de medir. `pnpm -r run` já executa
-em ordem topológica e `--filter` é nativo do pnpm, então o que restava era cache de tarefa — num
-gate que roda em 2,6s, isso não paga uma ferramenta a mais para explicar e manter. Repositórios
-separados triplicariam o tooling e obrigariam a publicar o contrato de evento em npm ou duplicá-lo,
-que é justamente o acoplamento que o enunciado pede para evitar.
-
-O limite conhecido: `pnpm -r` garante ordem topológica _dentro_ de uma tarefa, mas não expressa
-"build do pacote A antes do typecheck do pacote B". O `dependsOn: ["^build"]` do Turborepo faria
-isso. Contornei ordenando o gate — `format:check`, `build`, `lint`, `typecheck`, `test` — que é
-mais grosseiro, e escolhi o grosseiro por ser uma linha em vez de uma dependência.
+**Por quê:** montei com Turborepo e removi depois de medir. `pnpm -r run` já executa em ordem
+topológica, `--filter` é nativo do pnpm, e o que restava era cache de tarefa num gate que roda em
+2,6s. Repositórios separados triplicariam o tooling e forçariam duplicar o contrato de evento ou
+publicá-lo em npm. O limite conhecido: `pnpm -r` não expressa "build do pacote A antes do typecheck
+do pacote B", então o gate roda build antes das checagens — mais grosseiro que o `dependsOn` do
+Turborepo, e uma linha em vez de uma ferramenta.
 
 ## Modelagem de dados
 
 **Decisão:** status como enum do Postgres, tipo de transferência como tabela de referência com id
-explícito, e valor monetário em `numeric(18,2)`.
+fixado no seed, e valor monetário em `numeric(18,2)`.
 
 **Alternativas consideradas:** ambos como tabela de referência, ou ambos como enum.
 
-**Por quê:** status é regra, tipo é dado. O status tem conjunto fechado e máquina de estado, então
-o enum dá exaustividade checada pelo compilador nos `switch` e recusa valor inválido no próprio
-banco. O tipo chega como id numérico no contrato de entrada (`transferTypeId: 1`) e pode crescer
-sem deploy, o que é a definição de dado de referência — e o id é fixado no seed, sem
-autoincremento, para o valor `1` significar a mesma coisa em qualquer ambiente.
-
-Dinheiro em `numeric` e nunca em ponto flutuante, porque o limite de 1000 decide aprovação e é
-exatamente na fronteira que o float falha. O custo é o `Decimal` do Prisma precisar de conversão
-explícita na borda HTTP.
+**Por quê:** status é regra, tipo é dado. O status tem conjunto fechado e máquina de estado, então o
+enum dá exaustividade checada pelo compilador e recusa valor inválido no próprio banco; o tipo chega
+como id numérico no contrato de entrada e cresce sem deploy. O id é fixo, sem autoincremento, para
+`transferTypeId: 1` significar a mesma coisa em qualquer ambiente. `numeric` e nunca ponto
+flutuante, porque o limite de 1000 decide aprovação e é na fronteira que o float falha.
 
 ## Formato dos eventos
 
-**Decisão:** envelope versionado — `eventId`, `eventName`, `eventVersion`, `occurredAt`, `payload`
-— em JSON, com o schema Zod morando em `packages/contracts` e importado pelo produtor e pelo
-consumidor. O valor monetário viaja como string decimal.
+**Decisão:** envelope versionado — `eventId`, `eventName`, `eventVersion`, `occurredAt`, `payload` —
+em JSON, com o schema Zod em `packages/contracts` importado pelo produtor e pelo consumidor. Valor
+monetário viaja como string decimal.
 
-**Alternativas consideradas:** payload plano validado apenas no consumo, e Avro com schema
-registry.
+**Alternativas consideradas:** payload plano validado apenas no consumo, e Avro com schema registry.
 
-**Por quê:** o enunciado exige consistência entre quem publica e quem consome. Um schema
-compartilhado transforma essa consistência de acordo verbal em erro de compilação. O `eventId` é o
-que sustenta toda a idempotência do fluxo — sem envelope, ele não teria onde morar. Avro seria a
-resposta de produção, mas o `docker-compose` entregue não tem registry, e mexer na infraestrutura
-base custaria um dia por algo que o enunciado não pede.
-
-A string decimal existe porque é a única forma de o `numeric(18,2)` chegar ao antifraude sem passar
-por ponto flutuante binário no meio do caminho.
-
-## Escrita e evento na mesma transação
-
-**Decisão:** outbox transacional. A transação e a linha de `outbox_message` são gravadas no mesmo
-`COMMIT` do Postgres; um dispatcher lê o outbox e publica.
-
-**Alternativas consideradas:** publicar direto no Kafka depois do commit, com retry e um job de
-reconciliação; e transações do Kafka.
-
-**Por quê:** com publicação direta existe um instante em que a transação está commitada e o evento
-não saiu. Se o processo morre ali, a transação fica pendente para sempre e só um job de
-reconciliação a recupera. O outbox elimina esse instante. Transações do Kafka resolvem duplicação
-_dentro_ do Kafka, mas não abrangem o Postgres — complexidade alta resolvendo o problema errado.
-
-## Publicação fora da transação de banco
-
-**Decisão:** o dispatcher reivindica o lote numa transação curta que commita, e só então publica no
-Kafka. Marcar como publicada é uma segunda operação.
-
-**Alternativas consideradas:** publicar dentro da transação que reivindicou o lote — que foi como
-ficou implementado primeiro.
-
-**Por quê:** o kafkajs faz retry interno com recuo próprio, o que com o broker fora leva cerca de
-17 segundos; o `$transaction` do Prisma expira em 5. Publicando dentro, a transação morria e nem a
-falha era registrada — a contagem de tentativas ficava em zero para sempre. Além disso, manter
-transação aberta durante I/O de rede prende lock de linha por segundos.
-
-O custo assumido: um crash entre publicar e marcar reentrega a mensagem depois. É entrega
-ao-menos-uma-vez, que é a garantia que o consumo idempotente do outro lado já assume.
-
-A coluna `next_attempt_at` faz dois trabalhos: é o recuo exponencial (1s, 2s, 4s, até o teto de
-60s) e é um lease — ao reivindicar, o dispatcher a empurra para frente, para outra instância não
-pegar a mesma mensagem enquanto ele publica fora da transação. `FOR UPDATE SKIP LOCKED` entrega
-lotes disjuntos a instâncias concorrentes, sem lock global e sem coordenação externa.
-
-## Disponibilidade da API independente do broker
-
-**Decisão:** a conexão com o Kafka é preguiçosa e não-fatal. O serviço sobe, avisa que o broker
-está indisponível, e reconecta na próxima publicação.
-
-**Alternativas consideradas:** conectar em `onModuleInit` e falhar a subida — que foi a primeira
-implementação.
-
-**Por quê:** o enunciado diz que a criação não pode esperar a validação. Derrubar a API porque o
-broker está fora viola isso diretamente, e foi o que aconteceu: o app não subia. Verificado depois
-da correção — com o Kafka parado, a criação responde 201 e o evento é publicado sozinho quando o
-broker volta.
-
-O furo desta escolha, assumido: health verde com outbox crescendo é um cenário silencioso. A
-resposta é alerta sobre a contagem de mensagens não publicadas, que está fora do escopo local.
-
-## Antifraude sem banco
-
-**Decisão:** o serviço antifraude não tem persistência. O `eventId` do evento que ele publica é
-derivado do identificador da transação avaliada, por uuidv5.
-
-**Alternativas consideradas:** uma tabela de eventos processados no antifraude, com `eventId`
-aleatório.
-
-**Por quê:** a avaliação é uma função pura — mesma entrada, mesmo veredito. Com `eventId`
-determinístico, reprocessar a mesma mensagem produz um evento idêntico, e a guarda de idempotência
-do serviço de transações descarta o segundo. Entrega ao-menos-uma-vez mais determinismo mais
-consumo idempotente dá efeito de exatamente-uma-vez, sem transações do Kafka e sem um Postgres a
-mais só para registrar o que já foi avaliado.
-
-Isso deixa de valer no dia em que a regra depender de histórico — algo como "mais de três
-transações na última hora". Aí o serviço deixa de ser puro e passa a precisar de estado.
+**Por quê:** o enunciado exige consistência entre quem publica e quem consome; um schema
+compartilhado transforma isso de acordo verbal em erro de compilação. O `eventId` sustenta toda a
+idempotência do fluxo e, sem envelope, não teria onde morar. Avro seria a resposta de produção, mas
+o `docker-compose` entregue não tem registry. A string decimal é o que impede o `numeric(18,2)` de
+passar por ponto flutuante no trânsito entre os serviços.
 
 ## Tratamento de falha na mensageria
 
-**Decisão:** consumo idempotente por `eventId` registrado na mesma transação do efeito, mais DLQ
-para falhas definitivas, com distinção explícita entre falha transitória e definitiva.
+**Decisão:** outbox transacional na escrita, consumo idempotente por `eventId` e DLQ apenas para
+falha definitiva.
 
-**Alternativas consideradas:** confiar na entrega exatamente-uma-vez do broker; e mandar toda falha
-para a DLQ depois de N tentativas.
+**Alternativas consideradas:** publicar direto no Kafka depois do commit, com retry e um job de
+reconciliação; transações do Kafka; e mandar toda falha para a DLQ depois de N tentativas.
 
-**Por quê:** Kafka entrega ao menos uma vez. Em vez de fingir o contrário, o consumo registra o
-`eventId` em `processed_event` na mesma transação que aplica o efeito — separados, existiria uma
-janela em que um crash perderia a atualização.
+**Por quê:** com publicação direta existe um instante em que a transação está commitada e o evento
+não saiu — morrer ali deixa a transação pendente para sempre. O outbox elimina esse instante
+gravando transação e evento no mesmo `COMMIT`. Transações do Kafka não abrangem o Postgres, então
+resolvem o problema errado.
 
-A classificação é o que decide se o offset é confirmado:
+No consumo, Kafka entrega ao menos uma vez, então o `eventId` é registrado em `processed_event` na
+mesma transação do efeito. Falha definitiva — payload inválido, transação inexistente, transição
+proibida — vai para a DLQ e confirma o offset, para não travar a partição; falha transitória é
+retentada e, se não ceder, relançada sem confirmar, porque banco fora não é problema da mensagem.
 
-- **Definitiva** — payload que não passa no schema, transação que não existe, transição de estado
-  proibida. Vai para a DLQ e confirma o offset, para uma mensagem envenenada não travar a partição.
-- **Transitória** — banco fora, broker instável, timeout. Retenta com recuo e, se não ceder,
-  relança **sem** confirmar o offset, para o Kafka reentregar depois.
+Duas coisas aqui vieram de teste, não de projeto: publicar dentro da transação de banco não
+funciona, porque o retry interno do kafkajs estoura o timeout de 5s do `$transaction`; e conectar ao
+broker em `onModuleInit` derrubava a subida da API. O furo assumido é observabilidade — health verde
+com outbox crescendo é silencioso.
 
-Mandar falha transitória para a DLQ inundaria a DLQ de mensagens perfeitamente válidas: banco fora
-não é problema da mensagem. Um consumidor visivelmente parado é melhor que uma mensagem
-silenciosamente descartada — o preço é que isso exige alerta sobre o lag do grupo de consumidores.
+## Atualização do status na interface
 
-## Pacote compartilhado de mensageria
+**Decisão:** polling adaptativo do TanStack Query, ativo somente enquanto houver transação pendente
+na tela e desligado quando não houver.
 
-**Decisão:** produtor, criação de tópicos e o runner de consumo moram em `packages/messaging`,
-consumido pelos dois serviços.
+**Alternativas consideradas:** SSE e WebSocket.
 
-**Alternativas consideradas:** duplicar a camada de mensageria em cada serviço.
+**Por quê:** quem atualiza o status é o consumidor, que com mais de uma instância da API não é
+necessariamente a instância onde o browser abriu a conexão — um SSE correto exigiria fanout, por
+tópico dedicado ou `LISTEN/NOTIFY` do Postgres. A janela de pendência aqui é de segundos, então o
+polling custa menos que esse fanout, e sem estado de conexão no servidor ele escala
+horizontalmente de graça. WebSocket adiciona canal bidirecional que nada neste fluxo usa. Com
+muitas pendências simultâneas, ou latência abaixo de um segundo importando, o SSE passa a valer.
 
-**Por quê:** o pacote foi extraído no quarto PR, quando apareceu o segundo consumidor — extrair no
-primeiro uso é adivinhar a abstração. O argumento contra é legítimo: microserviço que compartilha
-biblioteca de infraestrutura acopla o deploy dos dois. Escolhi compartilhar porque a classificação
-entre falha transitória e definitiva é a lógica que mais precisa estar testada em um lugar só;
-duplicá-la significa corrigir o mesmo bug duas vezes. Em repositórios separados, eu duplicaria.
+## Estratégia de testes
 
-O pacote recebe a configuração pronta em vez de ler o ambiente, porque não conhece — nem deve
-conhecer — o schema de variáveis de nenhum dos serviços.
+**Decisão:** Vitest em todos os pacotes. Domínio puro em unidade, handlers de evento com dublês de
+repositório e de produtor, e as telas com Testing Library e MSW.
+
+**Alternativas consideradas:** e2e com Testcontainers subindo Postgres e Kafka reais, e Jest no
+backend por ser o padrão do CLI do Nest.
+
+**Por quê:** o e2e é a única prova automatizada do fluxo assíncrono ponta a ponta, e escolhi não
+pagar o preço — subida lenta no CI e a maior fonte de intermitência da entrega. A contrapartida está
+assumida: o fluxo assíncrono é verificado à mão, com roteiro no README, incluindo derrubar o Kafka e
+rebobinar o offset do grupo para provar a idempotência. Vitest em tudo mantém uma configuração só;
+Jest no backend traria duas ferramentas e dois relatórios para o gate costurar.
+
+## Volume alto de escritas e leituras concorrentes
+
+> A aplicação pode precisar lidar com um volume alto de escritas e leituras concorrentes. Como você
+> abordaria esse requisito?
+
+O que já está no código:
+
+**A escrita não espera nada.** O `POST` faz um `INSERT` e responde; a avaliação acontece no tempo
+dela. Nada de rede entra no caminho crítico da requisição.
+
+**O dispatcher do outbox escala horizontalmente sem coordenação**, porque
+`SELECT ... FOR UPDATE SKIP LOCKED` entrega lotes disjuntos a instâncias concorrentes. O passo
+seguinte é tirá-lo do processo da API, para a publicação não disputar recursos com o tráfego HTTP.
+
+**A partição por `transactionExternalId` é o que permite paralelizar o consumo** preservando ordem
+por transação. Mais volume significa mais partições e mais réplicas no grupo de consumidores, sem
+mudança de código.
+
+O que eu mudaria, e não mudei:
+
+**A leitura é o gargalo assumido.** `LIMIT/OFFSET` com `COUNT` degrada em página profunda, porque o
+banco varre e descarta. Paginação por chave resolve, e a contagem exata cede lugar a estimativa por
+`pg_class.reltuples` ou a apenas "existe próxima página". Não implementei porque o dashboard pede
+número de páginas, e trocar isso sem volume medido é otimizar por palpite.
+
+**Separar leitura de escrita** é o passo depois: réplica de leitura para a listagem, ou uma projeção
+materializada mantida pelo próprio consumidor de eventos — o fluxo assíncrono que já existe é
+exatamente a máquina que alimentaria essa projeção.
+
+O limite honesto: um único Postgres continua sendo o ponto de contenção da escrita. Particionar
+`transaction` por `created_at` posterga o problema; sharding por conta é a mudança estrutural, e não
+se paga sem número que a justifique.
