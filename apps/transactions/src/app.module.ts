@@ -1,7 +1,9 @@
+import { KafkaModule } from '@challenge/messaging';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { validateEnv } from './config/env';
+import { opcoesDoKafka } from './config/kafka';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TransactionsModule } from './transactions/transactions.module';
@@ -14,6 +16,7 @@ import { TransactionsModule } from './transactions/transactions.module';
       envFilePath: ['.env', '../../.env'],
       validate: validateEnv,
     }),
+    KafkaModule.forRootAsync({ inject: [ConfigService], useFactory: opcoesDoKafka }),
     PrismaModule,
     HealthModule,
     TransactionsModule,

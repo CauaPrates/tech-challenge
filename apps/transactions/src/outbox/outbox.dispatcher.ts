@@ -1,10 +1,10 @@
 import { EVENT_VERSION, TOPICS, transactionCreatedSchema } from '@challenge/contracts';
+import { KafkaProducer } from '@challenge/messaging';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ZodType } from 'zod';
 
 import type { Env } from '../config/env';
-import { KafkaProducer } from '../messaging/kafka-producer';
 import { proximaTentativaEm } from './backoff';
 import { type MensagemPendente, OutboxRepository } from './outbox.repository';
 
