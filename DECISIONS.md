@@ -3,9 +3,8 @@
 Registro das decisões estruturantes do projeto. Cada uma traz a alternativa que foi considerada e
 descartada, porque é a comparação que explica a escolha.
 
-Este arquivo deveria ter nascido no primeiro PR. Nasceu no quarto, consolidando as decisões dos
-anteriores — a data de cada entrada aponta o PR em que a decisão foi tomada, não em que foi
-escrita.
+Este arquivo deveria ter nascido no primeiro PR. Nasceu no quarto, consolidando as decisões
+tomadas até aqui — o histórico de commits é que mostra quando cada uma foi de fato tomada.
 
 ## Organização do projeto
 
