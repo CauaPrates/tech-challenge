@@ -75,6 +75,20 @@ export class TransactionsRepository {
     return { itens, total };
   }
 
+  async listarTipos(): Promise<{ id: number; name: string }[]> {
+    return this.prisma.transactionType.findMany({ orderBy: { id: 'asc' } });
+  }
+
+  /** GROUP BY no banco: uma consulta em vez de uma por status. */
+  async contarPorStatus(): Promise<{ status: TransactionStatus; total: number }[]> {
+    const grupos = await this.prisma.transaction.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+
+    return grupos.map((grupo) => ({ status: grupo.status, total: grupo._count._all }));
+  }
+
   async tipoExiste(tx: Prisma.TransactionClient, typeId: number): Promise<boolean> {
     const tipo = await tx.transactionType.findUnique({ where: { id: typeId } });
 

@@ -54,6 +54,10 @@ function montar() {
         ) => Promise<{ itens: TransacaoComTipo[]; total: number }>
       >()
       .mockResolvedValue({ itens: [], total: 0 }),
+    listarTipos: vi.fn<() => Promise<{ id: number; name: string }[]>>().mockResolvedValue([]),
+    contarPorStatus: vi
+      .fn<() => Promise<{ status: 'PENDENTE' | 'APROVADA' | 'REJEITADA'; total: number }[]>>()
+      .mockResolvedValue([]),
   };
   const outbox = {
     enfileirar: vi.fn<(tx: unknown, mensagem: NovaMensagemDeOutbox) => Promise<void>>(),
@@ -174,5 +178,54 @@ describe('listar', () => {
 
     expect(resposta.data).toEqual([]);
     expect(resposta.total).toBe(5);
+  });
+});
+
+describe('resumo', () => {
+  it('agrupa por status e soma o total', async () => {
+    const contexto = montar();
+    contexto.transacoes.contarPorStatus.mockResolvedValue([
+      { status: 'PENDENTE', total: 2 },
+      { status: 'APROVADA', total: 5 },
+      { status: 'REJEITADA', total: 3 },
+    ]);
+
+    const resumo = await contexto.service.resumo();
+
+    expect(resumo).toEqual({
+      total: 10,
+      porStatus: { pendente: 2, aprovada: 5, rejeitada: 3 },
+    });
+  });
+
+  it('devolve zero para status sem nenhuma transacao, em vez de omitir a chave', async () => {
+    const contexto = montar();
+    contexto.transacoes.contarPorStatus.mockResolvedValue([{ status: 'APROVADA', total: 1 }]);
+
+    const resumo = await contexto.service.resumo();
+
+    expect(resumo).toEqual({
+      total: 1,
+      porStatus: { pendente: 0, aprovada: 1, rejeitada: 0 },
+    });
+  });
+
+  it('devolve tudo zerado quando nao ha transacao', async () => {
+    const contexto = montar();
+    contexto.transacoes.contarPorStatus.mockResolvedValue([]);
+
+    expect(await contexto.service.resumo()).toEqual({
+      total: 0,
+      porStatus: { pendente: 0, aprovada: 0, rejeitada: 0 },
+    });
+  });
+});
+
+describe('listarTipos', () => {
+  it('repassa os tipos do banco, que e a fonte da verdade', async () => {
+    const contexto = montar();
+    contexto.transacoes.listarTipos.mockResolvedValue([{ id: 1, name: 'transferencia' }]);
+
+    expect(await contexto.service.listarTipos()).toEqual([{ id: 1, name: 'transferencia' }]);
   });
 });

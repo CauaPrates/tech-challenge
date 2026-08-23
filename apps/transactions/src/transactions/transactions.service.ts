@@ -4,9 +4,12 @@ import {
   type CreateTransactionInput,
   type ListTransactionsQuery,
   type PaginatedTransactions,
+  STATUS_NAME,
   TOPICS,
   type TransactionDetail,
   type TransactionResponse,
+  type TransactionsSummary,
+  type TransferType,
 } from '@challenge/contracts';
 import { Injectable } from '@nestjs/common';
 
@@ -75,6 +78,24 @@ export class TransactionsService {
       pageSize: query.pageSize,
       total,
       totalPages: totalDePaginas(total, query.pageSize),
+    };
+  }
+
+  async listarTipos(): Promise<TransferType[]> {
+    return this.transacoes.listarTipos();
+  }
+
+  async resumo(): Promise<TransactionsSummary> {
+    const grupos = await this.transacoes.contarPorStatus();
+    const porStatus = { pendente: 0, aprovada: 0, rejeitada: 0 };
+
+    for (const grupo of grupos) {
+      porStatus[STATUS_NAME[grupo.status]] = grupo.total;
+    }
+
+    return {
+      total: porStatus.pendente + porStatus.aprovada + porStatus.rejeitada,
+      porStatus,
     };
   }
 

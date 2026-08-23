@@ -6,5 +6,6 @@ export * from './events/transaction-status-updated';
 export * from './http/create-transaction';
 export * from './http/list-transactions';
 export * from './http/transaction-response';
+export * from './http/transaction-types';
 export * from './money';
 export * from './transaction-status';

@@ -6,6 +6,8 @@ import {
   type PaginatedTransactions,
   type TransactionDetail,
   type TransactionResponse,
+  type TransactionsSummary,
+  type TransferType,
 } from '@challenge/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
@@ -33,6 +35,20 @@ export class TransactionsController {
     @Query(new ZodValidationPipe(listTransactionsQuerySchema)) query: ListTransactionsQuery,
   ): Promise<PaginatedTransactions> {
     return this.transactions.listar(query);
+  }
+
+  /**
+   * Rotas literais vêm ANTES da rota com parâmetro. O Nest casa na ordem de declaração, e
+   * `summary` cairia no ParseUUIDPipe do `:transactionExternalId`, devolvendo 400.
+   */
+  @Get('types')
+  async listarTipos(): Promise<TransferType[]> {
+    return this.transactions.listarTipos();
+  }
+
+  @Get('summary')
+  async resumo(): Promise<TransactionsSummary> {
+    return this.transactions.resumo();
   }
 
   @Get(':transactionExternalId')
