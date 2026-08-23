@@ -17,3 +17,10 @@ export const STATUS_NAME: Record<TransactionStatus, TransactionStatusName> = {
   APROVADA: 'aprovada',
   REJEITADA: 'rejeitada',
 };
+
+/** Caminho inverso: o filtro de listagem chega pelo nome em minusculas. */
+export const STATUS_BY_NAME: Record<TransactionStatusName, TransactionStatus> = {
+  pendente: 'PENDENTE',
+  aprovada: 'APROVADA',
+  rejeitada: 'REJEITADA',
+};
