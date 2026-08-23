@@ -52,6 +52,29 @@ export class TransactionsRepository {
     await tx.transaction.update({ where: { id }, data: { status } });
   }
 
+  /**
+   * A pagina e a contagem saem da mesma transacao: sem isso, uma escrita no meio produziria uma
+   * pagina que nao corresponde ao total informado.
+   */
+  async listar(
+    where: Prisma.TransactionWhereInput,
+    page: number,
+    pageSize: number,
+  ): Promise<{ itens: TransacaoComTipo[]; total: number }> {
+    const [itens, total] = await this.prisma.$transaction([
+      this.prisma.transaction.findMany({
+        where,
+        include: { type: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return { itens, total };
+  }
+
   async tipoExiste(tx: Prisma.TransactionClient, typeId: number): Promise<boolean> {
     const tipo = await tx.transactionType.findUnique({ where: { id: typeId } });
 

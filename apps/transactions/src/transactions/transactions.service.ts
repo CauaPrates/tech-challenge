@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import {
   type CreateTransactionInput,
+  type ListTransactionsQuery,
+  type PaginatedTransactions,
   TOPICS,
   type TransactionResponse,
 } from '@challenge/contracts';
@@ -11,6 +13,7 @@ import { decimalParaString, numeroParaDecimal } from '../common/decimal';
 import { TransactionNotFoundError, TransactionTypeNotFoundError } from '../common/errors';
 import { OutboxRepository } from '../outbox/outbox.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { filtroDaListagem, totalDePaginas } from './listagem';
 import { paraContratoDeLeitura } from './transaction.mapper';
 import { TransactionsRepository } from './transactions.repository';
 
@@ -56,6 +59,22 @@ export class TransactionsService {
     });
 
     return paraContratoDeLeitura(transacao);
+  }
+
+  async listar(query: ListTransactionsQuery): Promise<PaginatedTransactions> {
+    const { itens, total } = await this.transacoes.listar(
+      filtroDaListagem(query),
+      query.page,
+      query.pageSize,
+    );
+
+    return {
+      data: itens.map(paraContratoDeLeitura),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      totalPages: totalDePaginas(total, query.pageSize),
+    };
   }
 
   async buscarPorExternalId(externalId: string): Promise<TransactionResponse> {

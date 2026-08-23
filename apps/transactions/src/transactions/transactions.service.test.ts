@@ -45,6 +45,15 @@ function montar() {
     criar: vi.fn<(tx: unknown, dados: NovaTransacao) => Promise<TransacaoComTipo>>(),
     buscarPorExternalId: vi.fn<(externalId: string) => Promise<TransacaoComTipo | null>>(),
     tipoExiste: vi.fn<(tx: unknown, typeId: number) => Promise<boolean>>().mockResolvedValue(true),
+    listar: vi
+      .fn<
+        (
+          where: unknown,
+          page: number,
+          pageSize: number,
+        ) => Promise<{ itens: TransacaoComTipo[]; total: number }>
+      >()
+      .mockResolvedValue({ itens: [], total: 0 }),
   };
   const outbox = {
     enfileirar: vi.fn<(tx: unknown, mensagem: NovaMensagemDeOutbox) => Promise<void>>(),
@@ -143,5 +152,27 @@ describe('buscarPorExternalId', () => {
     await expect(contexto.service.buscarPorExternalId(EXTERNAL_ID)).rejects.toThrow(
       TransactionNotFoundError,
     );
+  });
+});
+
+describe('listar', () => {
+  it('devolve a pagina mapeada com total e total de paginas', async () => {
+    const contexto = montar();
+    contexto.transacoes.listar.mockResolvedValue({ itens: [transacaoFalsa()], total: 137 });
+
+    const resposta = await contexto.service.listar({ page: 2, pageSize: 20 });
+
+    expect(resposta).toMatchObject({ page: 2, pageSize: 20, total: 137, totalPages: 7 });
+    expect(resposta.data[0]?.transactionExternalId).toBe(EXTERNAL_ID);
+  });
+
+  it('devolve lista vazia com o total real quando a pagina passa do fim', async () => {
+    const contexto = montar();
+    contexto.transacoes.listar.mockResolvedValue({ itens: [], total: 5 });
+
+    const resposta = await contexto.service.listar({ page: 99, pageSize: 20 });
+
+    expect(resposta.data).toEqual([]);
+    expect(resposta.total).toBe(5);
   });
 });
