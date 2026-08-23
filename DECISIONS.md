@@ -3,9 +3,6 @@
 Uma seção por decisão estruturante, na ordem em que o README as lista, mais a resposta sobre
 volume alto no fim.
 
-A seção de atualização de status na interface registra uma decisão já tomada mas ainda não
-implementada — o dashboard chega em um PR seguinte.
-
 ## Organização do projeto
 
 **Decisão:** monorepo com pnpm workspaces, três aplicações em `apps/` e o código compartilhado em
@@ -80,9 +77,15 @@ na tela e desligado quando não houver.
 **Por quê:** quem atualiza o status é o consumidor, que com mais de uma instância da API não é
 necessariamente a instância onde o browser abriu a conexão — um SSE correto exigiria fanout, por
 tópico dedicado ou `LISTEN/NOTIFY` do Postgres. A janela de pendência aqui é de segundos, então o
-polling custa menos que esse fanout, e sem estado de conexão no servidor ele escala
-horizontalmente de graça. WebSocket adiciona canal bidirecional que nada neste fluxo usa. Com
-muitas pendências simultâneas, ou latência abaixo de um segundo importando, o SSE passa a valer.
+polling custa menos que esse fanout, e sem estado de conexão no servidor ele escala horizontalmente
+de graça. WebSocket adiciona canal bidirecional que nada neste fluxo usa. Com muitas pendências
+simultâneas, ou latência abaixo de um segundo importando, o SSE passa a valer.
+
+O "adaptativo" é a parte que importa e está coberta por teste: o intervalo liga quando há pendente
+na tela e desliga quando não há. Polling que não desliga é trabalho ocioso para sempre.
+
+Os filtros e a página moram na URL, não em estado de componente. Link compartilhável, botão de
+voltar e recarregar a página funcionam sem código extra.
 
 ## Estratégia de testes
 
