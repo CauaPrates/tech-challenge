@@ -6,6 +6,10 @@ import {
   transactionDetailSchema,
   type TransactionResponse,
   transactionResponseSchema,
+  type TransactionsSummary,
+  transactionsSummarySchema,
+  type TransferType,
+  transferTypesSchema,
 } from '@challenge/contracts';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -85,4 +89,12 @@ export function criarTransacao(entrada: CreateTransactionInput): Promise<Transac
     method: 'POST',
     body: JSON.stringify(entrada),
   });
+}
+
+export function listarTipos(): Promise<TransferType[]> {
+  return requisitar('/transactions/types', transferTypesSchema);
+}
+
+export function buscarResumo(): Promise<TransactionsSummary> {
+  return requisitar('/transactions/summary', transactionsSummarySchema);
 }
