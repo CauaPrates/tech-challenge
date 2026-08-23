@@ -56,3 +56,18 @@ describe('validateEnv', () => {
     expect(env).not.toHaveProperty('VARIAVEL_INVENTADA');
   });
 });
+
+describe('CORS', () => {
+  it('permite o dashboard local por padrao', () => {
+    expect(validateEnv({ ...ambienteMinimo }).CORS_ORIGINS).toEqual(['http://localhost:3000']);
+  });
+
+  it('aceita lista de origens separada por virgula', () => {
+    const env = validateEnv({
+      ...ambienteMinimo,
+      CORS_ORIGINS: 'http://localhost:3000, https://painel.exemplo.com',
+    });
+
+    expect(env.CORS_ORIGINS).toEqual(['http://localhost:3000', 'https://painel.exemplo.com']);
+  });
+});
