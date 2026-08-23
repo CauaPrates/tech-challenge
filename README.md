@@ -103,7 +103,7 @@ pnpm typecheck
 pnpm test
 ```
 
-São 201 testes. Onde eles estão e o que cobrem:
+São 210 testes. Onde eles estão e o que cobrem:
 
 | Onde                 | O que                                                                                                                      |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
