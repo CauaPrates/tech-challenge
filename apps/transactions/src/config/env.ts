@@ -4,6 +4,14 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   TRANSACTIONS_PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().min(1),
+  // origens do dashboard. Sem CORS o browser bloqueia a chamada de :3000 para :3001, e nenhum
+  // teste com dublê de rede pega isso — só o browser de verdade
+  CORS_ORIGINS: z
+    .string()
+    .min(1)
+    .default('http://localhost:3000')
+    .transform((origens) => origens.split(',').map((origem) => origem.trim()))
+    .pipe(z.array(z.string().min(1)).min(1)),
   // aceita lista separada por virgula, que e o formato que o kafkajs espera como array
   KAFKA_BROKERS: z
     .string()

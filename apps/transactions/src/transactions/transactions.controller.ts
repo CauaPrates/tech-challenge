@@ -4,6 +4,7 @@ import {
   type ListTransactionsQuery,
   listTransactionsQuerySchema,
   type PaginatedTransactions,
+  type TransactionDetail,
   type TransactionResponse,
 } from '@challenge/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
@@ -38,7 +39,7 @@ export class TransactionsController {
   async buscar(
     @Param('transactionExternalId', new ParseUUIDPipe({ version: '4' }))
     transactionExternalId: string,
-  ): Promise<TransactionResponse> {
+  ): Promise<TransactionDetail> {
     return this.transactions.buscarPorExternalId(transactionExternalId);
   }
 }

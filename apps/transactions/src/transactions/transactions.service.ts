@@ -5,6 +5,7 @@ import {
   type ListTransactionsQuery,
   type PaginatedTransactions,
   TOPICS,
+  type TransactionDetail,
   type TransactionResponse,
 } from '@challenge/contracts';
 import { Injectable } from '@nestjs/common';
@@ -14,7 +15,7 @@ import { TransactionNotFoundError, TransactionTypeNotFoundError } from '../commo
 import { OutboxRepository } from '../outbox/outbox.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { filtroDaListagem, totalDePaginas } from './listagem';
-import { paraContratoDeLeitura } from './transaction.mapper';
+import { paraContratoDeDetalhe, paraContratoDeLeitura } from './transaction.mapper';
 import { TransactionsRepository } from './transactions.repository';
 
 @Injectable()
@@ -77,13 +78,13 @@ export class TransactionsService {
     };
   }
 
-  async buscarPorExternalId(externalId: string): Promise<TransactionResponse> {
+  async buscarPorExternalId(externalId: string): Promise<TransactionDetail> {
     const transacao = await this.transacoes.buscarPorExternalId(externalId);
 
     if (transacao === null) {
       throw new TransactionNotFoundError(externalId);
     }
 
-    return paraContratoDeLeitura(transacao);
+    return paraContratoDeDetalhe(transacao);
   }
 }
