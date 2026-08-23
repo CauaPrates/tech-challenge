@@ -7,13 +7,14 @@ import { EstadoDeCarregamento, EstadoDeErro, EstadoVazio } from '@/components/ui
 import { ErroDaApi } from '../api/client';
 import { formatarDataHora, formatarValor } from '../formato';
 import { useTransacao } from '../hooks/use-transacao';
+import { IndicadorDeAtualizacao } from './indicador-de-atualizacao';
 import { StatusBadge } from './status-badge';
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <div className="border-t border-slate-100 px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm text-slate-600">{rotulo}</dt>
-      <dd className="mt-1 text-sm sm:col-span-2 sm:mt-0">{children}</dd>
+    <div className="grid gap-1 border-t border-slate-100 px-5 py-3 sm:grid-cols-3 sm:gap-4">
+      <dt className="text-sm text-slate-500">{rotulo}</dt>
+      <dd className="text-sm text-slate-900 sm:col-span-2">{children}</dd>
     </div>
   );
 }
@@ -30,7 +31,15 @@ export function DetalheTransacao({ externalId }: { externalId: string }) {
     return (
       <EstadoVazio
         titulo="Transação não encontrada"
-        descricao="O identificador informado não corresponde a nenhuma transação."
+        descricao="O identificador informado não corresponde a nenhuma transação registrada."
+        acao={
+          <Link
+            href="/"
+            className="inline-block rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-xs hover:bg-slate-50"
+          >
+            Voltar para a listagem
+          </Link>
+        }
       />
     );
   }
@@ -45,31 +54,50 @@ export function DetalheTransacao({ externalId }: { externalId: string }) {
   }
 
   const transacao = consulta.data;
+  const pendente = transacao.transactionStatus.name === 'pendente';
 
   return (
     <div className="space-y-4">
-      <Link href="/" className="text-sm text-blue-700 underline">
-        Voltar para a listagem
-      </Link>
+      <IndicadorDeAtualizacao ativo={pendente} />
 
-      <dl className="rounded border border-slate-200 bg-white">
-        <Campo rotulo="Identificador">
-          <span className="font-mono text-xs">{transacao.transactionExternalId}</span>
-        </Campo>
-        <Campo rotulo="Status">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <p className="text-xs tracking-wide text-slate-500 uppercase">Valor</p>
+            <p className="text-2xl font-semibold tabular-nums">{formatarValor(transacao.value)}</p>
+          </div>
           <StatusBadge status={transacao.transactionStatus.name} />
-        </Campo>
-        <Campo rotulo="Tipo">{transacao.transactionType.name}</Campo>
-        <Campo rotulo="Valor">{formatarValor(transacao.value)}</Campo>
-        <Campo rotulo="Conta de débito">
-          <span className="font-mono text-xs">{transacao.accountExternalIdDebit}</span>
-        </Campo>
-        <Campo rotulo="Conta de crédito">
-          <span className="font-mono text-xs">{transacao.accountExternalIdCredit}</span>
-        </Campo>
-        <Campo rotulo="Criada em">{formatarDataHora(transacao.createdAt)}</Campo>
-        <Campo rotulo="Última alteração">{formatarDataHora(transacao.updatedAt)}</Campo>
-      </dl>
+        </div>
+
+        <dl>
+          <Campo rotulo="Identificador">
+            <span className="font-mono text-xs break-all">{transacao.transactionExternalId}</span>
+          </Campo>
+          <Campo rotulo="Tipo">{transacao.transactionType.name}</Campo>
+          <Campo rotulo="Conta de débito">
+            <span className="font-mono text-xs break-all">{transacao.accountExternalIdDebit}</span>
+          </Campo>
+          <Campo rotulo="Conta de crédito">
+            <span className="font-mono text-xs break-all">{transacao.accountExternalIdCredit}</span>
+          </Campo>
+          <Campo rotulo="Criada em">{formatarDataHora(transacao.createdAt)}</Campo>
+          <Campo rotulo="Última alteração">
+            {formatarDataHora(transacao.updatedAt)}
+            {!pendente && (
+              <span className="ml-2 text-xs text-slate-500">
+                (quando o veredito do antifraude foi aplicado)
+              </span>
+            )}
+          </Campo>
+        </dl>
+      </div>
+
+      <Link
+        href="/"
+        className="inline-block rounded text-sm text-indigo-600 hover:text-indigo-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+      >
+        ← Voltar para a listagem
+      </Link>
     </div>
   );
 }

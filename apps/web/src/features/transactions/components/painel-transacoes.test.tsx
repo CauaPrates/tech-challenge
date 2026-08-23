@@ -1,5 +1,5 @@
 import type { PaginatedTransactions, TransactionResponse } from '@challenge/contracts';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -105,7 +105,7 @@ describe('listagem', () => {
     expect(await screen.findByRole('table')).toBeInTheDocument();
     // o mesmo texto existe nas opcoes do filtro; o selector isola o badge da linha
     expect(screen.getByText('aprovada', { selector: 'span' })).toBeInTheDocument();
-    expect(screen.getByText(/1 no total/)).toBeInTheDocument();
+    expect(screen.getByText('Página 1 de 1')).toBeInTheDocument();
   });
 
   it('desabilita a paginacao quando ha uma unica pagina', async () => {
@@ -167,8 +167,11 @@ describe('filtros', () => {
     renderComQuery(<PainelTransacoes />);
 
     expect(await screen.findByLabelText('Status')).toHaveValue('rejeitada');
-    expect(screen.getByLabelText('Tipo')).toHaveValue('3');
     expect(screen.getByLabelText('De')).toHaveValue('2026-08-01');
+    // o tipo depende das opcoes chegarem da API; sem esperar, o select ainda esta so com "Todos"
+    await waitFor(() => {
+      expect(screen.getByLabelText('Tipo')).toHaveValue('3');
+    });
   });
 });
 
