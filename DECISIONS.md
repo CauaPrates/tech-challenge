@@ -87,6 +87,12 @@ na tela e desliga quando não há. Polling que não desliga é trabalho ocioso p
 Os filtros e a página moram na URL, não em estado de componente. Link compartilhável, botão de
 voltar e recarregar a página funcionam sem código extra.
 
+Duas decisões menores de interface, ambas para a tela ser utilizável por quem nunca a viu: os
+tipos de transferência vêm da API em vez de chumbados no componente, então acrescentar um tipo
+por migration aparece na tela sem tocar no front; e o formulário gera os identificadores de conta,
+porque o enunciado não define cadastro de contas e sem isso ninguém tem de onde tirar um UUID
+válido.
+
 ## Estratégia de testes
 
 **Decisão:** Vitest em todos os pacotes. Domínio puro em unidade, handlers de evento com dublês de

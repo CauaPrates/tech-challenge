@@ -12,11 +12,32 @@ const DEBITO = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 const CREDITO = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const CRIADA = '9c1e8b4a-7f21-4c3e-9a55-2b7d4e1f0a33';
 
+/** Le o valor vivo do campo, sem cast: narrowing por instanceof resolve o tipo. */
+function valorDe(rotulo: string): string {
+  const campo = screen.getByLabelText(rotulo);
+
+  return campo instanceof HTMLInputElement ? campo.value : '';
+}
+
+/** Os campos de conta já vêm preenchidos, então limpar antes de digitar é obrigatório. */
+async function trocar(rotulo: string, valor: string) {
+  const campo = screen.getByLabelText(rotulo);
+
+  await userEvent.clear(campo);
+
+  if (valor !== '') {
+    await userEvent.type(campo, valor);
+  }
+}
+
 async function preencher(valores: { debito?: string; credito?: string; valor?: string } = {}) {
-  await userEvent.type(screen.getByLabelText('Conta de débito'), valores.debito ?? DEBITO);
-  await userEvent.type(screen.getByLabelText('Conta de crédito'), valores.credito ?? CREDITO);
-  await userEvent.clear(screen.getByLabelText('Valor'));
-  await userEvent.type(screen.getByLabelText('Valor'), valores.valor ?? '120');
+  // o select de tipo só ganha opções quando a API responde, e o envio fica travado até lá
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Criar transação' })).toBeEnabled();
+  });
+  await trocar('Conta de débito', valores.debito ?? DEBITO);
+  await trocar('Conta de crédito', valores.credito ?? CREDITO);
+  await trocar('Valor', valores.valor ?? '120');
 }
 
 function enviar() {
@@ -41,7 +62,7 @@ beforeEach(() => {
 });
 
 describe('validacao antes do envio', () => {
-  it('nao envia nada quando os campos estao vazios', async () => {
+  it('nao envia nada quando os campos sao esvaziados', async () => {
     const chamado = vi.fn();
     servidor.use(
       http.post(`${API_URL}/transactions`, () => {
@@ -52,10 +73,42 @@ describe('validacao antes do envio', () => {
     );
     renderComQuery(<FormNovaTransacao />);
 
+    await preencher({ debito: '', credito: '', valor: '' });
     await enviar();
 
     expect(await screen.findAllByRole('alert')).not.toHaveLength(0);
     expect(chamado).not.toHaveBeenCalled();
+  });
+
+  it('vem preenchido com contas validas, para a tela ser usavel sem adivinhacao', () => {
+    renderComQuery(<FormNovaTransacao />);
+
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const debito = valorDe('Conta de débito');
+    const credito = valorDe('Conta de crédito');
+
+    expect(debito).toMatch(uuid);
+    expect(credito).toMatch(uuid);
+    expect(debito).not.toBe(credito);
+  });
+
+  it('gera um identificador novo no clique, sem mexer no outro campo', async () => {
+    renderComQuery(<FormNovaTransacao />);
+    const antes = valorDe('Conta de débito');
+    const creditoAntes = valorDe('Conta de crédito');
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Gerar identificador' })[0]!);
+
+    expect(screen.getByLabelText('Conta de débito')).not.toHaveValue(antes);
+    expect(screen.getByLabelText('Conta de crédito')).toHaveValue(creditoAntes);
+  });
+
+  it('carrega os tipos da API em vez de chumbar no componente', async () => {
+    renderComQuery(<FormNovaTransacao />);
+
+    expect(await screen.findByRole('option', { name: 'transferencia' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'pagamento' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'deposito' })).toBeInTheDocument();
   });
 
   it('aponta o erro no campo de conta invalida', async () => {

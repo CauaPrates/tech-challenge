@@ -50,6 +50,8 @@ efeito.
 | `/transactions`                        | POST   | Registra como `pendente` e enfileira o evento de criação |
 | `/transactions/:transactionExternalId` | GET    | Recupera uma transação                                   |
 | `/transactions`                        | GET    | Listagem paginada, com filtros de status, tipo e período |
+| `/transactions/types`                  | GET    | Tipos de transferência, para o front não os chumbar      |
+| `/transactions/summary`                | GET    | Contagem por status, para os cartões do topo do painel   |
 | `/health`                              | GET    | `transactions` verifica o banco; `anti-fraud` é liveness |
 
 ### Telas
@@ -103,7 +105,7 @@ pnpm typecheck
 pnpm test
 ```
 
-São 201 testes. Onde eles estão e o que cobrem:
+São 210 testes. Onde eles estão e o que cobrem:
 
 | Onde                 | O que                                                                                                                      |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------- |

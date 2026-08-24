@@ -6,23 +6,31 @@ import Link from 'next/link';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Transações',
+  title: 'Transações · painel',
   description: 'Painel de transações com validação antifraude assíncrona',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen bg-slate-100 text-slate-900">
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <Providers>
-          <header className="border-b border-slate-200 bg-white">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-              <Link href="/" className="text-lg font-semibold">
-                Transações
+          <header className="border-b border-slate-800 bg-slate-900">
+            <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
+              <Link
+                href="/"
+                className="flex items-baseline gap-2 rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-400"
+              >
+                <span className="text-base font-semibold tracking-tight text-white">
+                  Transações
+                </span>
+                <span className="hidden text-xs text-slate-400 sm:inline">
+                  validação antifraude assíncrona
+                </span>
               </Link>
               <Link
                 href="/transacoes/nova"
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
               >
                 Nova transação
               </Link>
